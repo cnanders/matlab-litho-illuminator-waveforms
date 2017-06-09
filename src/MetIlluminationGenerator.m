@@ -53,7 +53,7 @@ classdef MetIlluminationGenerator < mic.Base
         
         cDevice = 'test'       % Name of nPoint device 'm142' (field), 'm143' (pupil)
         
-        dYOffset = 360;
+        dYOffset = 310;
                
         lConnected = false;
         hFigure
@@ -120,7 +120,6 @@ classdef MetIlluminationGenerator < mic.Base
         dRTime
         
         uipType
-        uipPlotType
         
         uieMultiPoleNum
         uieMultiSigMin
@@ -273,9 +272,8 @@ classdef MetIlluminationGenerator < mic.Base
                  ],... % left bottom width height
                 'Resize', 'off', ...
                 'HandleVisibility', 'on', ... % lets close all close the figure
-                'Visible', 'on', ...
-                'CloseRequestFcn', @this.onCloseRequest ...
-                );
+                'Visible', 'on' ...
+            );
             
             drawnow;
             
@@ -301,7 +299,6 @@ classdef MetIlluminationGenerator < mic.Base
             % this.buildDevicePanel();
             % this.np.build(this.hFigure, 750 + 160, this.dYOffset);
             this.uildSaved.refresh();
-            this.onLC400Connect()
         end
         
         function delete(this)
@@ -327,7 +324,6 @@ classdef MetIlluminationGenerator < mic.Base
         function load(this, st)
            
              this.uipType.load(st.uipType);
-             this.uipPlotType.load(st.uipPlotType);
 
              this.uieMultiPoleNum.load(st.uieMultiPoleNum);
              this.uieMultiSigMin.load(st.uieMultiSigMin);
@@ -379,7 +375,6 @@ classdef MetIlluminationGenerator < mic.Base
             st = struct();
             
             st.uipType = this.uipType.save();
-            st.uipPlotType = this.uipPlotType.save();
 
             st.uieMultiPoleNum = this.uieMultiPoleNum.save();
             st.uieMultiSigMin = this.uieMultiSigMin.save();
@@ -423,6 +418,10 @@ classdef MetIlluminationGenerator < mic.Base
             st.uieFilterHz = this.uieFilterHz.save();
             st.uieVoltsScale = this.uieVoltsScale.save();
             st.uieConvKernelSig = this.uieConvKernelSig.save();
+            
+            st.dVx = this.dVx;
+            st.dVy = this.dVy;
+            st.dTime = this.dTime;
 
         end
 
@@ -436,34 +435,12 @@ classdef MetIlluminationGenerator < mic.Base
         
         function initPlotPanel(this)
             
-            this.uipPlotType = mic.ui.common.Popup(...
-                'ceOptions', {'Preview', 'nPoint Monitor'}, ...
-                'cLabel', 'Select Plot Source');
-            addlistener(this.uipPlotType, 'eChange', @this.onPlotTypeChange);
-                        
-            this.initPlotRecordPanel();
         end
         
         function initPlotPreviewPanel(this)
             
         end
         
-        function initPlotRecordPanel(this)
-            
-            this.uibRecord = mic.ui.common.Button('cText', 'Record');
-            this.uieRecordTime = mic.ui.common.Edit(...
-                'cLabel', 'Time (ms)', ...
-                'cType', 'd', ...
-                'lShowLabel', false);
-            
-             % Default values
-            this.uieRecordTime.setMax(2000);
-            this.uieRecordTime.setMin(0);
-            this.uieRecordTime.set(100);
-            
-            addlistener(this.uibRecord, 'eChange', @this.onRecordClick);
-            
-        end
         
         function initWaveformSerpPanel(this)
             
@@ -755,137 +732,14 @@ classdef MetIlluminationGenerator < mic.Base
         %
         % See also PUPILFILL, BUILD, DELETE
             
-            % 2012.04.16 C. Cork instructed me to use double for all raw
-            % values
-            
-            
             this.initWaveformPanel();
             this.initPlotPanel();
             this.initSavedWaveformsPanel();
-            
-            % ************ nPoint
-            
-            % 2014.02.11 CNA
-            % I decided that we will build two PupilFill instances, one for
-            % the field scanner and one for the pupil scanner.  We will
-            % need to pass in information about the nPoint we want to
-            % connect to.  I'm assuming I will eventually build in a second
-            % parameter to nPoint that can specify which hardware it is
-            % connected to.  This, in turn will be passed to the 
-            % APIHardwareIOnPoint instances within the nPoint 
-            
-            % 2017.02.02 
-            % This is creating the UI instance, which is also a wrapper
-            % around the Java.  For now, I'm going to try and override this
-            % with the new npoint.lc400.LC400 available at 
-            % https://github.com/cnanders/matlab-npoint-lc400
-            
-            % this.np = nPoint(this.cl, this.cDevice);
-            
-            if this.lUseNPoint
-                this.np = npoint.lc400.LC400('cPort', this.cPortNPoint);
-                this.np.init();
-                this.np.connect();
-            end
-            
-            
-            % addlistener(this.np, 'eConnect', @this.handleConnect);
-            % addlistener(this.np, 'eDisconnect', @this.handleDisconnect);
-                        
-                        
-        end
-        
-        function loadState(this)
-                        
-            %{
-            % ceSelected is a cell of selected options - use the first
-            % one.  Populates a structure named s in the local
-            % workspace of this method
-
-            cFile = fullfile(this.cDir, '..', this.cSaveDir, this.cName);
-            
-            if exist(cFile, 'file') ~= 0
-
-                load(cFile); % populates s in local workspace
-
-                this.loadClassInstance(s);
-                % this.updateAxes();
-                % this.updatePupilImg('preview');
-            
-            end
-            %}
-        end
-        
-       
-        
-        function saveState(this)
-            
-            
-            %{
-            cPath = fullfile(this.cDir, '..', this.cSaveDir, 'saved-state.mat');
-            
-            % Create a nested recursive structure of all public properties
-            s = this.saveClassInstance();
-                        
-            % Save
-            save(cPath, 's');  
-            %}
-            
-        end
-       
-        function onLC400Connect(this)
-            this.lConnected = true;
-            
-            if this.uipPlotType.getSelectedIndex() == uint8(2)
-                % nPoint Monitor
-                if ishandle(this.hPlotRecordPanel)
-                    set(this.hPlotRecordPanel, 'Visible', 'on');
-                end
-            end
-             
-            % Show "set waveform" button
-            % Show "record" button
-            % Show "set" button
-            
-            % this.uibRecord.show();
-            % this.uieRecordTime.show();
-            
-            %{
-            this.uibWriteWaveform.show();
-            this.uibStartWaveform.show(); 
-            this.uibStopWaveform.show();
-            %}
-            
-            
-        end
-        
-        function onLC400Disconnect(this)
-            
-            this.lConnected = false;
-            
-            if ishandle(this.hPlotRecordPanel)
-                set(this.hPlotRecordPanel, 'Visible', 'off');
-            end
-                
-            % this.uibRecord.hide();
-            % this.uieRecordTime.hide();
-            
-            this.uibWriteWaveform.hide();
-            this.uibStartWaveform.hide();
-            this.uibStopWaveform.hide();
-            
-        end
-        
-        function handleConnect(this, src, evt)
-            this.onLC400Connect();   
+                      
         end
         
         
-        function handleDisconnect(this, src, evt)
-            this.onLC400Disconnect();
-        end
-        
-                
+      
         function onMultiTimeTypeChange(this, src, evt)
             
                                                 
@@ -1074,70 +928,12 @@ classdef MetIlluminationGenerator < mic.Base
         end
         
         
-        function onPlotTypeChange(this, src, evt)
-            
-            
-            % Debug: echo visibility of record button
-            
-            % this.uibRecord.isVisible()
-            % this.uieRecordTime.isVisible();
-            
-            
-            % Hide all other panels
-            this.hidePlotPanels();
-                        
-            % Build the sub-panel based on popup type 
-            switch this.uipPlotType.getSelectedIndex()
-                case uint8(1)
-                    % Preview
-                    if ishandle(this.hPlotPreviewPanel)
-                        set(this.hPlotPreviewPanel, 'Visible', 'on');
-                    else
-                        this.buildPlotPreviewPanel();
-                    end
-                case uint8(2)
-                    % nPoint Monitor
-                    if ishandle(this.hPlotMonitorPanel)
-                        set(this.hPlotMonitorPanel, 'Visible', 'on');
-                    else
-                        this.buildPlotMonitorPanel();
-                    end
-                    
-                    % Show the record panel when the device is connected
-                    if this.lConnected
-                        if ishandle(this.hPlotRecordPanel)
-                            set(this.hPlotRecordPanel, 'Visible', 'on');
-                        else
-                            this.buildPlotRecordPanel();
-                        end
-                    end
-                    
-            end                
-            
-        end
         
-        function hidePlotPanels(this)
-                           
-            if ishandle(this.hPlotPreviewPanel)
-                set(this.hPlotPreviewPanel, 'Visible', 'off');
-            end
-            
-            if ishandle(this.hPlotMonitorPanel)
-                set(this.hPlotMonitorPanel, 'Visible', 'off');
-            end
-            
-            if ishandle(this.hPlotRecordPanel)
-                set(this.hPlotRecordPanel, 'Visible', 'off');
-            end
-                                                
-        end
+        
+        
         
         function onPreview(this, src, evt)
-            
-            % Change plot type to preview
-            this.uipPlotType.setSelectedIndex(uint8(1));
-            
-            
+                        
             this.updateWaveforms();
             this.updateAxes();
             this.updatePupilImg('preview');
@@ -1576,61 +1372,9 @@ classdef MetIlluminationGenerator < mic.Base
             % Update the mic.ui.common.ListDir
             this.uildSaved.refresh();
             
-            %{
-            % If the name is not already on the list, append it
-            if isempty(strmatch(cFileName, this.uildSaved.getOptions(), 'exact'))
-                this.uildSaved.append(cFileName);
-            end
-            
-            notify(this, 'eNew');
-            %}
-            
-            % this.saveAsciiFiles(cFileName)            
-           
         end
         
-        function saveAsciiFiles(this)
-            
-            % Save ascii files for nPoint software.  Make sure the time
-            % step is 24 us.  This is the control loop clock so it will
-            % read a data point from the file once every 24 us.  If your
-            % samples are not separated by 24 us, the process of reading
-            % the txt file will change the effective frequency
-            
-            % Signal levels need to be in mrad.  +/- 10 V == +/- 3 mrad.
-            % Also, the vector needs to be a column vector before it is
-            % written to ascii so each value goes on a new line.
-            
-            vx = this.dVx*3/10;
-            vy = this.dVy*3/10;
-            
-            vx = vx';
-            vy = vy';
-            
-            % Build the pupilfill_ascii directory if it does not exist
-            
-            cDirSaveAscii = fullfile( ...
-                this.cDirApp, ...
-                'pupilfill_ascii' ...
-            );
         
-            mic.Utils.checkDir(cDirSaveAscii);
-                        
-            % Save
-            
-            cPathX = fullfile( ...
-                cDirSaveAscii, ...
-                [cName, '_x.txt'] ...
-            );
-            cPathY = fullfile( ...
-                cDirSaveAscii, ...
-                [cName, '_y.txt'] ...
-            );
-            
-            save(cPathX, 'vx', '-ascii');
-            save(cPathY, 'vy', '-ascii');
-                        
-        end
         
         function buildWaveformPanel(this)
                         
@@ -1959,7 +1703,7 @@ classdef MetIlluminationGenerator < mic.Base
                 'Units', 'pixels',...
                 'Title', 'Saved Waveforms',...
                 'Clipping', 'on',...
-                'Position', mic.Utils.lt2lb([230 this.dYOffset dWidth 350], this.hFigure) ...
+                'Position', mic.Utils.lt2lb([230 this.dYOffset dWidth 400], this.hFigure) ...
             );
             drawnow;
             
@@ -1969,7 +1713,7 @@ classdef MetIlluminationGenerator < mic.Base
                 10, ...
                 20, ...
                 dWidth-20, ...
-                260 ...
+                300 ...
             );
             
             
@@ -2025,15 +1769,11 @@ classdef MetIlluminationGenerator < mic.Base
                 'Units', 'pixels',...
                 'Title', 'Plot',...
                 'Clipping', 'on',...
-                'Position', mic.Utils.lt2lb([230 10 this.dWidthPlotPanel 340], this.hFigure) ...
+                'Position', mic.Utils.lt2lb([230 10 this.dWidthPlotPanel 290], this.hFigure) ...
             );
             drawnow; 
-
-            % Popup (to select type)
-            this.uipPlotType.build(this.hPlotPanel, 10, 20, 190, this.dHeightEdit);
-
-            % Call handler for popup to build type
-            this.onPlotTypeChange();
+            
+            this.buildPlotPreviewPanel()
             
         end
         
@@ -2052,7 +1792,7 @@ classdef MetIlluminationGenerator < mic.Base
                 'Title', '',...
                 'Clipping', 'on',...
                 'BorderType', 'none', ...
-                'Position', mic.Utils.lt2lb([2 65 990-6 280], this.hPlotPanel) ...
+                'Position', mic.Utils.lt2lb([2 20 990-6 280], this.hPlotPanel) ...
             );
             drawnow;            
 
@@ -2190,13 +1930,7 @@ classdef MetIlluminationGenerator < mic.Base
         
         
         
-        function onCloseRequest(this, src, evt)
-            
-            if ishandle(this.hFigure)
-                delete(this.hFigure);
-            end
-            this.saveState(); 
-        end
+       
         
         
         
@@ -2515,9 +2249,7 @@ classdef MetIlluminationGenerator < mic.Base
             
             % Make sure preview is showing
             
-            if this.uipPlotType.getSelectedIndex() ~= uint8(1)
-                this.uipPlotType.setSelectedIndex(uint8(1));
-            end
+            
             
             
             % Load the .mat file
@@ -2594,134 +2326,6 @@ classdef MetIlluminationGenerator < mic.Base
             end
             
         end        
-        
-        function onRecordClick(this, src, evt)
-            
-            % Compute number of samples from uieRecordTime
-            
-            dSeconds = this.uieRecordTime.get() * 1e-3; % s
-            dClockPeriod = 24e-6;
-            u32Num = uint32(round(dSeconds / dClockPeriod));
-            
-            cMsg = sprintf('Recording %1.0f samples from LC400', u32Num);
-            this.msg(cMsg);
-            
-            dResult = this.np.record(u32Num);
-            
-            % Unpack
-            
-            dTime = double(1 : u32Num) * dClockPeriod;
-            
-            
-            this.dRVxCommand =      dResult(1, :) * this.uieVoltsScale.get(); % * cos(this.dThetaX * pi / 180);
-            this.dRVxSensor =       dResult(2, :) * this.uieVoltsScale.get(); % * cos(this.dThetaX * pi / 180);
-            this.dRVyCommand =      dResult(3, :) * this.uieVoltsScale.get(); % * cos(this.dThetaY * pi / 180);
-            this.dRVySensor =       dResult(4, :) * this.uieVoltsScale.get(); % * cos(this.dThetaY * pi / 180);
-            this.dRTime =           dTime;
-            
-            
-            % stReturn = this.np.record();
-            
-            % Unpack 
-            %{
-            this.dRVxCommand =      stReturn.dRVxCommand;
-            this.dRVxSensor =       stReturn.dRVxSensor;
-            this.dRVyCommand =      stReturn.dRVyCommand;   
-            this.dRVySensor =       stReturn.dRVySensor;
-            this.dRTime =           stReturn.dRTime;
-            
-            %}
-            
-            % Update the axes
-            this.updateRecordAxes();
-            
-        end
-        
-        function [i32X, i32Y] = get20BitWaveforms(this)
-            
-            if isempty(this.dVx) || ...
-               isempty(this.dVy)
-                
-                % Empty - did not type anything
-                % Throw a warning box and recursively call
-
-                h = msgbox( ...
-                    'The signal has not been set, click preview first.', ...
-                    'Empty name', ...
-                    'warn', ...
-                    'modal' ...
-                    );
-
-                % wait for them to close the message
-                uiwait(h);
-                return;
-            end
-            
-            % Convert the voltages into ints between +/- (2^19 - 1) where
-            % 2^19 - 1 is the max 
-            
-            % Step 1, get values in [-1 1]
-            dVxRel = this.dVx / this.uieVoltsScale.get(); % values in [-1 : 1]
-            dVyRel = this.dVy / this.uieVoltsScale.get(); % values in [-1 : 1]
-            
-            % 2017.02.02
-            % Adding correction factor for AOI.  The x direction receives
-            % cos(45) less displacement than y so need to increase it.
-            
-            dVxRelCor = dVxRel / cos(this.dThetaX * pi / 180);
-            dVyRelCor = dVyRel / cos(this.dThetaY * pi / 180);
-            
-            % Convert to values between +/- (2^19 - 1) and cast as int32 as
-            % this is needed for LC400 max value and min value
-            
-            i32X = int32(dVxRelCor * (2^19 - 1));
-            i32Y = int32(dVyRelCor * (2^19 - 1));  
-            
-        end
-        
-        function onWriteClick(this, src, evt)
-                                    
-            [i32X, i32Y] = this.get20BitWaveforms();
-            
-            this.uibWriteWaveform.setText('Writing ...');
-            drawnow;
-            
-            this.setWavetable(i32X, i32Y)  
-            this.uibWriteWaveform.setText('Write nPoint')
-            
-            h = msgbox( ...
-                'The waveform has been written.  Click "Start Scan" to start.', ...
-                'Success!', ...
-                'help', ...
-                'modal' ...
-            );
-           
-            
-        end
-        
-        
-        function onStopClick(this, src, evt)
-            
-            % Stop
-            this.np.setTwoWavetablesActive(false);
-            
-            % Disable
-            this.np.setWavetableEnable(uint8(1), false);
-            this.np.setWavetableEnable(uint8(2), false);
-            
-        end
-        
-        function onStartClick(this, src, evt)
-            
-            % Enable
-            this.np.setWavetableEnable(uint8(1), true);
-            this.np.setWavetableEnable(uint8(2), true);
-            
-            % Start
-            this.np.setTwoWavetablesActive(true);
-            
-        end
-        
         
         
         % @return {double m x n} return a matrix that represents the

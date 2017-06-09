@@ -36,7 +36,7 @@ Serpentine waveforms are useful in illumination-homogenizing subsystems
 2. Add this library and all dependencies to the MATLAB path, e.g., 
 
 ```matlab
-addpath(genpath('vendor/github/cnanders/matlab-litho-illuminator-waveforms'));
+addpath(genpath('vendor/github/cnanders/matlab-met-illuminaton-generator'));
 addpath(genpath('vendor/github/cnanders/matlab-instrument-control'));
 ```
 
